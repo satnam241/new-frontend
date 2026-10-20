@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, Maximize2, Minimize2, Download, AlertCircle } from 'lucide-react';
+import { BACKEND_URL } from '../api';
 
 interface PdfViewerProps {
   orderId: string;
@@ -19,7 +20,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   isDownloading = false,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const pdfUrl = `/api/orders/view-pdf/${orderId}?token=${encodeURIComponent(token)}`;
+  const pdfUrl = `${BACKEND_URL}/api/orders/view-pdf/${orderId}?token=${encodeURIComponent(token)}`;
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);

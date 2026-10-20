@@ -19,7 +19,7 @@ import {
   RotateCcw,
   FolderOpen,
 } from 'lucide-react';
-import { apiFetch, getAdminToken, removeAdminToken } from '../api';
+import { apiFetch, getAdminToken, removeAdminToken, getAssetUrl } from '../api';
 
 interface Stats {
   totalRevenue: number;
@@ -410,7 +410,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="aspect-[16/9] w-full bg-slate-100 relative overflow-hidden">
                         {prod.coverImage ? (
                           <img
-                            src={prod.coverImage}
+                            src={getAssetUrl(prod.coverImage)}
                             alt={prod.title}
                             className="w-full h-full object-cover"
                           />

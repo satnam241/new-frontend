@@ -1,5 +1,13 @@
 // Device Fingerprint generator & API client helper
 
+export const BACKEND_URL = (import.meta.env.VITE_API_URL || 'https://new-backend-pied.vercel.app').replace(/\/$/, '');
+
+export const getAssetUrl = (path?: string | null): string => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  return `${BACKEND_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 export const getOrCreateDeviceFingerprint = (): string => {
   let fp = localStorage.getItem('device_fp');
   if (!fp) {
@@ -42,7 +50,12 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     headers['Authorization'] = `Bearer ${adminToken}`;
   }
 
-  const response = await fetch(url, {
+  const fullUrl =
+    url.startsWith('http://') || url.startsWith('https://')
+      ? url
+      : `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+
+  const response = await fetch(fullUrl, {
     ...options,
     headers,
   });

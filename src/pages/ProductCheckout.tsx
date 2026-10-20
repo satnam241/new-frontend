@@ -13,6 +13,7 @@ import {
   apiFetch,
   getOrCreateDeviceFingerprint,
   storeDeviceToken,
+  getAssetUrl,
 } from '../api';
 
 declare global {
@@ -115,11 +116,7 @@ export const ProductCheckout: React.FC = () => {
         amount: orderData.amount * 100, // paise
         name: product.title,
         description: product.description ? product.description.substring(0, 100) : product.title,
-        image: product.coverImage
-          ? product.coverImage.startsWith('http')
-            ? product.coverImage
-            : `${window.location.origin}${product.coverImage}`
-          : undefined,
+        image: product.coverImage ? getAssetUrl(product.coverImage) : undefined,
         order_id: orderData.razorpayOrderId,
         theme: {
           color: '#0f172a',
@@ -228,7 +225,7 @@ export const ProductCheckout: React.FC = () => {
           {product.coverImage ? (
             <div className="relative aspect-[16/10] w-full bg-slate-900/60 overflow-hidden">
               <img
-                src={product.coverImage}
+                src={getAssetUrl(product.coverImage)}
                 alt={product.title}
                 className="w-full h-full object-cover"
               />

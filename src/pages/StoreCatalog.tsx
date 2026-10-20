@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from 'lucide-react';
-import { apiFetch } from '../api';
+import { apiFetch, getAssetUrl } from '../api';
 
 interface Product {
   id: string;
@@ -103,7 +103,7 @@ export const StoreCatalog: React.FC = () => {
                     <div className="sm:w-48 aspect-[16/9] sm:aspect-square bg-slate-900 shrink-0 relative overflow-hidden">
                       {prod.coverImage ? (
                         <img
-                          src={prod.coverImage}
+                          src={getAssetUrl(prod.coverImage)}
                           alt={prod.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
