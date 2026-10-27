@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -42,11 +42,59 @@ export const ProductCheckout: React.FC = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [statusChecking, setStatusChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const currentOrderIdRef = useRef<string | null>(null);
+  const pollingIntervalRef = useRef<any>(null);
 
   useEffect(() => {
     fetchProduct();
   }, [slug]);
+
+  // Handle mobile app switching (e.g. user goes to Google Pay / PhonePe and returns to browser)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && currentOrderIdRef.current) {
+        checkOrderStatus(currentOrderIdRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    };
+  }, []);
+
+  const checkOrderStatus = async (orderId: string): Promise<boolean> => {
+    try {
+      setStatusChecking(true);
+      const res = await apiFetch(`/api/orders/status/${orderId}`);
+      const data = await res.json();
+
+      if (data.status === 'PAID' && data.deviceToken) {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        storeDeviceToken(data.orderId, data.deviceToken);
+        navigate(`/access/${data.orderId}?token=${encodeURIComponent(data.deviceToken)}`);
+        return true;
+      } else if (data.status === 'FAILED') {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        let msg = data.message || 'Payment was unsuccessful.';
+        if (msg.includes('registered website')) {
+          msg = 'Payment blocked by Razorpay: Live domain is not whitelisted in Razorpay Dashboard. (Any deducted amount will be auto-refunded to your bank by Razorpay within 24-48 hrs).';
+        }
+        setError(msg);
+        setPaying(false);
+        setStatusChecking(false);
+        return true;
+      }
+    } catch (err: any) {
+      console.warn('Status check warning:', err);
+    } finally {
+      setStatusChecking(false);
+    }
+    return false;
+  };
 
   const fetchProduct = async () => {
     try {
@@ -96,6 +144,7 @@ export const ProductCheckout: React.FC = () => {
         throw new Error(orderData.message || 'Unable to initialize checkout');
       }
 
+      currentOrderIdRef.current = orderData.orderId;
       const clientFp = getOrCreateDeviceFingerprint();
 
       // Check if Razorpay script is loaded or mock fallback active
@@ -110,7 +159,19 @@ export const ProductCheckout: React.FC = () => {
         return;
       }
 
-      // 2. Directly open Razorpay checkout modal
+      // Start periodic status polling (recovers payments if browser backgrounds during UPI intent)
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      let pollCount = 0;
+      pollingIntervalRef.current = setInterval(async () => {
+        pollCount++;
+        const resolved = await checkOrderStatus(orderData.orderId);
+        if (resolved || pollCount > 30) {
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+          if (pollCount > 30) setPaying(false);
+        }
+      }, 2500);
+
+      // 2. Open Razorpay checkout modal
       const options = {
         key: orderData.keyId,
         amount: orderData.amount * 100, // paise
@@ -118,10 +179,14 @@ export const ProductCheckout: React.FC = () => {
         description: product.description ? product.description.substring(0, 100) : product.title,
         image: product.coverImage ? getAssetUrl(product.coverImage) : undefined,
         order_id: orderData.razorpayOrderId,
+        notes: {
+          orderId: orderData.orderId,
+        },
         theme: {
           color: '#0f172a',
         },
         handler: async (response: any) => {
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
           try {
             await verifyAndRedirect({
               orderId: orderData.orderId,
@@ -137,18 +202,31 @@ export const ProductCheckout: React.FC = () => {
         },
         modal: {
           ondismiss: () => {
-            setPaying(false);
+            setTimeout(() => {
+              checkOrderStatus(orderData.orderId).then((done) => {
+                if (!done) setPaying(false);
+              });
+            }, 1000);
           },
         },
       };
 
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', (response: any) => {
-        setError(response.error?.description || 'Payment was cancelled or failed');
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        const desc = response.error?.description || 'Payment was cancelled or failed';
+        if (desc.includes('registered website')) {
+          setError(
+            'Payment blocked: Domain not whitelisted in Razorpay. In your Razorpay Dashboard, please add this website URL under Business Profile -> Website Details. (Any deducted ₹1 will be refunded by your bank within 24-48 hrs).'
+          );
+        } else {
+          setError(desc);
+        }
         setPaying(false);
       });
       rzp.open();
     } catch (err: any) {
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
       setError(err.message || 'Something went wrong during checkout');
       setPaying(false);
     }
@@ -309,7 +387,7 @@ export const ProductCheckout: React.FC = () => {
                 {paying ? (
                   <>
                     <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Opening Payment...</span>
+                    <span>{statusChecking ? 'Verifying with Bank...' : 'Processing Payment...'}</span>
                   </>
                 ) : (
                   <>
