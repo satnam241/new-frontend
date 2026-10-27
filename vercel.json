@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://new-backend-pied.vercel.app/api/$1"
+      "destination": "https://new-backend-0pd0.onrender.com/api/$1"
     },
     {
       "source": "/uploads/(.*)",
-      "destination": "https://new-backend-pied.vercel.app/uploads/$1"
+      "destination": "https://new-backend-0pd0.onrender.com/uploads/$1"
     },
     {
       "source": "/(.*)",
