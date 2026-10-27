@@ -1,6 +1,6 @@
 // Device Fingerprint generator & API client helper
 
-export const BACKEND_URL = (import.meta.env.VITE_API_URL || 'https://new-backend-pied.vercel.app').replace(/\/$/, '');
+export const BACKEND_URL = (import.meta.env.VITE_API_URL || 'https://new-backend-0pd0.onrender.com').replace(/\/$/, '');
 
 export const getAssetUrl = (path?: string | null): string => {
   if (!path) return '';
